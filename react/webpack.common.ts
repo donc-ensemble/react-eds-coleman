@@ -1,11 +1,13 @@
-﻿import * as path from "path";
-import * as fs from "fs";
-import { Configuration } from "webpack";
+﻿import * as path from 'path';
+import * as fs from 'fs';
+import { Configuration } from 'webpack';
+import { fileURLToPath } from 'url';
 
-const blocksSrcPath = path.resolve(import.meta.dirname, "src/blocks");
-const blocks = fs
-  .readdirSync(blocksSrcPath, { withFileTypes: true })
-  .filter((dirent) => dirent.isDirectory());
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const blocksSrcPath = path.resolve(__dirname, 'src/blocks');
+const blocks = fs.readdirSync(blocksSrcPath, { withFileTypes: true }).filter((dirent) => dirent.isDirectory());
 
 const configuration: Configuration = {
   entry: {
@@ -14,34 +16,34 @@ const configuration: Configuration = {
         [`blocks:${block.name}`]: {
           filename: `blocks/${block.name}/${block.name}.js`,
           import: path.resolve(blocksSrcPath, block.name, `${block.name}.tsx`),
-          dependOn: ["bundle"],
+          dependOn: ['bundle'],
           library: {
-            type: "module",
+            type: 'module',
           },
         },
       }))
       .reduce((blocks, block) => ({ ...blocks, ...block }), {}),
     delayed: {
-      filename: "scripts/delayed.js",
-      import: ["../scripts/_delayed.js"],
-      dependOn: ["bundle"],
+      filename: 'scripts/delayed.js',
+      import: ['../scripts/_delayed.js'],
+      dependOn: ['bundle'],
       library: {
-        type: "module",
+        type: 'module',
       },
     },
     scripts: {
-      filename: "scripts/scripts.js",
-      import: ["../scripts/_scripts.js"],
-      dependOn: ["bundle"],
+      filename: 'scripts/scripts.js',
+      import: ['../scripts/_scripts.js'],
+      dependOn: ['bundle'],
       library: {
-        type: "module",
+        type: 'module',
       },
     },
     bundle: {
-      filename: "scripts/bundle.js",
-      import: ["../scripts/aem.js"],
+      filename: 'scripts/bundle.js',
+      import: ['../scripts/aem.js'],
       library: {
-        type: "module",
+        type: 'module',
       },
     },
   },
@@ -51,8 +53,8 @@ const configuration: Configuration = {
   },
 
   output: {
-    path: path.resolve(import.meta.dirname, ".."),
-    publicPath: "/",
+    path: path.resolve(__dirname, '..'),
+    publicPath: '/',
   },
 
   optimization: {
@@ -60,8 +62,8 @@ const configuration: Configuration = {
       cacheGroups: {
         bundle: {
           test: /[\\/]node_modules[\\/]|aem\.js$/,
-          chunks: "all",
-          name: "bundle",
+          chunks: 'all',
+          name: 'bundle',
           enforce: true,
         },
       },
@@ -70,15 +72,15 @@ const configuration: Configuration = {
 
   resolve: {
     alias: {
-      "react/jsx-runtime": "preact/jsx-runtime",
-      "react/jsx-dev-runtime": "preact/jsx-runtime",
-      react: "preact/compat",
-      "react-dom/test-utils": "preact/test-utils",
-      "react-dom": "preact/compat", // Must be below test-utils
+      'react/jsx-runtime': 'preact/jsx-runtime',
+      'react/jsx-dev-runtime': 'preact/jsx-runtime',
+      react: 'preact/compat',
+      'react-dom/test-utils': 'preact/test-utils',
+      'react-dom': 'preact/compat', // Must be below test-utils
 
-      "@": path.resolve(import.meta.dirname, "src"),
+      '@': path.resolve(__dirname, 'src'),
     },
-    extensions: [".mjs", ".js", ".jsx", ".mts", ".ts", ".tsx"],
+    extensions: ['.mjs', '.js', '.jsx', '.mts', '.ts', '.tsx'],
     plugins: [],
   },
 
@@ -87,20 +89,20 @@ const configuration: Configuration = {
       {
         test: /\.(ts|tsx)$/,
         exclude: /node_modules/,
-        use: "babel-loader",
+        use: 'babel-loader',
       },
       {
         test: /\.css$/,
-        use: ["style-loader", "css-loader"],
+        use: ['style-loader', 'css-loader'],
       },
       {
         test: /\.s[ac]ss$/,
-        use: ["style-loader", "css-loader", "sass-loader"],
+        use: ['style-loader', 'css-loader', 'sass-loader'],
       },
     ],
   },
   plugins: [],
-  target: ["es2022"],
+  target: ['es2022'],
 };
 
 export default configuration;

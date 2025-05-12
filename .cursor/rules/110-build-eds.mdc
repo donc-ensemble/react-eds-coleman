@@ -1,0 +1,503 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# EDS HTML to React TypeScript Converter
+
+Rules for converting EDS HTML content into TypeScript React components with best practices and type safety.
+
+<rule>
+name: build0eds
+description: Converts EDS HTML content into TypeScript React components with proper structure and image handling
+format: typescript | scss
+
+prompt: |
+  I will provide an HTML snippet from {block-name}.eds.html that needs to be converted into a TypeScript React component with SCSS styling. The component should match the UI shown in the reference image while following our project's coding standards.
+  
+system_message: |
+  You are an expert in converting HTML to React TypeScript components. Follow these rules strictly when transforming EDS HTML content:
+  
+  ## Component Structure
+  1. Create a clear TypeScript interface for the component props
+  2. Extract content from DOM using an extractContentFromDOM function with robust error handling
+  3. Use functional components with React.FC<Props> type annotation
+  4. Generate a decorate function for AEM integration
+  5. Set displayName property for component debugging
+  6. Export the component and types for reuse when appropriate
+  7. Name the component appropriately based on its content
+  
+  ## Type Safety
+  1. Properly type all extracted data and props
+  2. Avoid using 'any' type - use specific types or generics
+  3. Properly type DOM references with correct element types
+  4. Add proper return types to all functions
+  5. Type event handlers correctly
+  6. Handle null/undefined values safely with optional chaining and nullish coalescing
+  
+  ## Image Handling
+  1. Preserve all <picture> elements with their sources and media queries
+  2. Maintain srcset attributes and format parameters (webply, png, etc.)
+  3. Preserve width and height attributes for images
+  4. Keep loading attributes (lazy/eager)
+  5. Maintain alt text for accessibility
+  
+  ## Content Extraction
+  1. Extract text content from paragraphs, headings, and other elements
+  2. Preserve markup like <strong> tags when appropriate
+  3. Extract link URLs, titles, and classes
+  4. Maintain button classes and container structure
+  
+  ## Styling and Structure
+  1. Create a separate SCSS file with appropriate class names, id, and appropriate selectors.
+  2. Use className instead of class attribute
+  3. Maintain the original HTML structure in React JSX
+  4. Preserve the block's overall layout
+  5. Use semantic HTML elements
+  6. Do not add a transform or effects unless explicitly mentioned
+  7. Ensure you follow the alignments, margins, paddings, colors and overall design of the UI image to the scss
+  8. Add !important on button colors, and text size.
+
+  
+  ## General Rules
+  1. No comments in the output code
+  2. Follow React best practices and modern patterns
+  3. Strictly do not add *-container or *-wrapper classnames in your component
+  4. Consider that blocks are ALWAYS inside <div class="*-container"><div class="*-wrapper"><div class="block"></div></div></div>
+  5. Ensure accessibility compliance
+
+filters:
+  - type: file_extension
+    pattern: "\\.(html|tsx)$"
+  - type: content
+    pattern: "<div class=\".*? block\"|data-block-name|React\\.|useState|useEffect|ReactDOM"
+
+actions:
+  - type: suggest
+    message: |
+      When converting EDS HTML to React TypeScript components, follow these guidelines:
+      
+      ## HTML Content Structure Analysis
+      First, analyze the HTML structure to understand:
+      1. Main container and its attributes
+      2. Image sections with picture elements
+      3. Text content sections
+      4. Button/CTA elements
+      5. Overall layout (columns, rows, cards, etc.)
+      
+      ## Data Extraction Pattern
+      ```typescript
+      export interface ComponentProps {
+        // Extract the key data points from the HTML
+        sections: Section[];
+      }
+      
+      export interface Section {
+        image: {
+          sources: ImageSource[];
+          alt: string;
+          width: string;
+          height: string;
+        };
+        content: {
+          title: string;
+          description: string;
+          cta: {
+            url: string;
+            text: string;
+            title?: string;
+          };
+        };
+      }
+      
+      export interface ImageSource {
+        type: string;
+        srcSet: string;
+        media?: string;
+      }
+      
+      const extractContentFromDOM = (block: HTMLElement): ComponentProps => {
+        // Get all top-level sections
+        const sections = Array.from(block.querySelectorAll(':scope > div')).map(section => {
+          // Extract image data
+          const picture = section.querySelector('picture');
+          const sources = Array.from(picture?.querySelectorAll('source') || []).map(source => ({
+            type: source.getAttribute('type') || '',
+            srcSet: source.getAttribute('srcset') || '',
+            media: source.getAttribute('media') || undefined
+          }));
+          const img = picture?.querySelector('img');
+          
+          // Extract text content
+          const contentDiv = section.querySelectorAll('div')[1]; // Second div contains content
+          const titleEl = contentDiv?.querySelector('p strong');
+          const descriptionEl = contentDiv?.querySelectorAll('p')[1];
+          const ctaEl = contentDiv?.querySelector('a');
+          
+          return {
+            image: {
+              sources,
+              alt: img?.getAttribute('alt') || '',
+              width: img?.getAttribute('width') || '',
+              height: img?.getAttribute('height') || ''
+            },
+            content: {
+              title: titleEl?.textContent || '',
+              description: descriptionEl?.textContent || '',
+              cta: {
+                url: ctaEl?.getAttribute('href') || '',
+                text: ctaEl?.textContent || '',
+                title: ctaEl?.getAttribute('title')
+              }
+            }
+          };
+        });
+        
+        return { sections };
+      };
+      ```
+      
+      ## Component Structure
+      ```typescript
+      import React, { StrictMode } from 'react';
+      import ReactDOM from 'react-dom/client';
+      import './ComponentName.scss';
+      
+      export const ComponentName: React.FC<ComponentProps> = ({ sections }) => {
+        return (
+          <div className="component-name">
+            {sections.map((section, index) => (
+              <div key={index} className="component-name__section">
+                <div className="component-name__image-container">
+                  <picture>
+                    {section.image.sources.map((source, idx) => (
+                      <source 
+                        key={idx}
+                        type={source.type} 
+                        srcSet={source.srcSet} 
+                        media={source.media}
+                      />
+                    ))}
+                    <img 
+                      loading="lazy" 
+                      alt={section.image.alt} 
+                      src={section.image.sources.find(s => s.type.includes('png') && !s.media)?.srcSet || ''} 
+                      width={section.image.width} 
+                      height={section.image.height}
+                    />
+                  </picture>
+                </div>
+                <div className="component-name__content">
+                  <p><strong>{section.content.title}</strong></p>
+                  <p>{section.content.description}</p>
+                  <p className="component-name__button-container">
+                    <a 
+                      href={section.content.cta.url} 
+                      title={section.content.cta.title} 
+                      className="button"
+                    >
+                      {section.content.cta.text}
+                    </a>
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      };
+      
+      ComponentName.displayName = 'ComponentName';
+      
+      const decorate = async (block: HTMLElement) => {
+        const props = extractContentFromDOM(block);
+        
+        ReactDOM.createRoot(block).render(
+          <StrictMode>
+            <ComponentName {...props} />
+          </StrictMode>
+        );
+        
+        return await Promise.resolve();
+      };
+      
+      export default decorate;
+      ```
+      
+      ## SCSS Structure
+      ```scss
+      .component-name {
+        display: flex;
+        flex-direction: column;
+        
+        @media (min-width: 768px) {
+          flex-direction: row;
+          flex-wrap: wrap;
+          justify-content: space-between;
+        }
+        
+        &__section {
+          margin-bottom: 2rem;
+          
+          @media (min-width: 768px) {
+            width: calc(50% - 1rem);
+          }
+        }
+        
+        &__image-container {
+          margin-bottom: 1rem;
+          
+          img {
+            width: 100%;
+            height: auto;
+          }
+        }
+        
+        &__content {
+          p {
+            margin-bottom: 1rem;
+            
+            &:first-child {
+              font-size: 1.25rem;
+            }
+          }
+        }
+        
+        &__button-container {
+          margin-top: 1.5rem;
+          
+          .button {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            text-decoration: none;
+            font-weight: 600;
+          }
+        }
+      }
+      ```
+
+examples:
+  - input: |
+      <div class="card-demo block" data-block-name="card-demo" data-block-status="loading">
+          <div>
+              <div>
+              <picture>
+                  <source type="image/webp" srcset="./media_1e63e18e034935319d853878d992d7edb38c098c8.png?width=2000&amp;format=webply&amp;optimize=medium" media="(min-width: 600px)">
+                  <source type="image/webp" srcset="./media_1e63e18e034935319d853878d992d7edb38c098c8.png?width=750&amp;format=webply&amp;optimize=medium">
+                  <source type="image/png" srcset="./media_1e63e18e034935319d853878d992d7edb38c098c8.png?width=2000&amp;format=png&amp;optimize=medium" media="(min-width: 600px)">
+                  <img loading="lazy" alt="" src="./media_1e63e18e034935319d853878d992d7edb38c098c8.png?width=750&amp;format=png&amp;optimize=medium" width="750" height="598">
+              </picture>
+              </div>
+              <div>
+              <p><strong>Coleman Collective</strong></p>
+              <p>Meet our crew that's helping more people get outside and reimagining a better tomorrow for all.</p>
+              <p class="button-container"><a href="https://www.coleman.com/collective.html" title="Learn More" class="button">Learn More</a></p>
+              </div>
+          </div>
+          <div>
+              <div>
+              <picture>
+                  <source type="image/webp" srcset="./media_13ed3834dfcbad80e0932f8f4f4074edb304f1cbe.png?width=2000&amp;format=webply&amp;optimize=medium" media="(min-width: 600px)">
+                  <source type="image/webp" srcset="./media_13ed3834dfcbad80e0932f8f4f4074edb304f1cbe.png?width=750&amp;format=webply&amp;optimize=medium">
+                  <source type="image/png" srcset="./media_13ed3834dfcbad80e0932f8f4f4074edb304f1cbe.png?width=2000&amp;format=png&amp;optimize=medium" media="(min-width: 600px)">
+                  <img loading="lazy" alt="" src="./media_13ed3834dfcbad80e0932f8f4f4074edb304f1cbe.png?width=750&amp;format=png&amp;optimize=medium" width="750" height="598">
+              </picture>
+              </div>
+              <div>
+              <p><strong>The Outside is Calling</strong></p>
+              <p>Find inspiration and resources for your next adventure.</p>
+              <p class="button-container"><a href="https://www.coleman.com/the-outside-is-calling.html" title="Learn More" class="button">Learn More</a></p>
+              </div>
+          </div>
+      </div>
+    output: |
+      // CardDemo.tsx
+      import React, { StrictMode } from 'react';
+      import ReactDOM from 'react-dom/client';
+      import './card-demo.scss';
+      
+      export interface CardDemoProps {
+        cards: Card[];
+      }
+      
+      export interface Card {
+        image: {
+          sources: ImageSource[];
+          width: string;
+          height: string;
+        };
+        content: {
+          title: string;
+          description: string;
+          cta: {
+            url: string;
+            text: string;
+            title: string;
+          };
+        };
+      }
+      
+      export interface ImageSource {
+        type: string;
+        srcSet: string;
+        media?: string;
+      }
+      
+      const extractContentFromDOM = (block: HTMLElement): CardDemoProps => {
+        const cards = Array.from(block.querySelectorAll(':scope > div')).map(card => {
+          const pictureEl = card.querySelector('picture');
+          const sources = Array.from(pictureEl?.querySelectorAll('source') || []).map(source => ({
+            type: source.getAttribute('type') || '',
+            srcSet: source.getAttribute('srcset') || '',
+            media: source.getAttribute('media') || undefined
+          }));
+          
+          const imgEl = pictureEl?.querySelector('img');
+          const contentDiv = card.querySelectorAll('div')[1];
+          const titleEl = contentDiv?.querySelector('p strong');
+          const descriptionEl = contentDiv?.querySelectorAll('p')[1];
+          const ctaEl = contentDiv?.querySelector('a');
+          
+          return {
+            image: {
+              sources,
+              width: imgEl?.getAttribute('width') || '',
+              height: imgEl?.getAttribute('height') || ''
+            },
+            content: {
+              title: titleEl?.textContent || '',
+              description: descriptionEl?.textContent || '',
+              cta: {
+                url: ctaEl?.getAttribute('href') || '',
+                text: ctaEl?.textContent || '',
+                title: ctaEl?.getAttribute('title') || ''
+              }
+            }
+          };
+        });
+        
+        return { cards };
+      };
+      
+      export const CardDemo: React.FC<CardDemoProps> = ({ cards }) => {
+        return (
+          <div className="card-demo">
+            {cards.map((card, index) => (
+              <div key={index} className="card-demo__card">
+                <div className="card-demo__image">
+                  <picture>
+                    {card.image.sources.map((source, idx) => (
+                      <source 
+                        key={idx}
+                        type={source.type} 
+                        srcSet={source.srcSet} 
+                        media={source.media}
+                      />
+                    ))}
+                    <img 
+                      loading="lazy" 
+                      alt="" 
+                      src={card.image.sources.find(s => s.type.includes('png') && !s.media)?.srcSet} 
+                      width={card.image.width} 
+                      height={card.image.height}
+                    />
+                  </picture>
+                </div>
+                <div className="card-demo__content">
+                  <p><strong>{card.content.title}</strong></p>
+                  <p>{card.content.description}</p>
+                  <p className="button-container">
+                    <a 
+                      href={card.content.cta.url} 
+                      title={card.content.cta.title} 
+                      className="button"
+                    >
+                      {card.content.cta.text}
+                    </a>
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      };
+      
+      CardDemo.displayName = 'CardDemo';
+      
+      const decorate = async (block: HTMLElement) => {
+        const props = extractContentFromDOM(block);
+        
+        ReactDOM.createRoot(block).render(
+          <StrictMode>
+            <CardDemo {...props} />
+          </StrictMode>
+        );
+        
+        return await Promise.resolve();
+      };
+      
+      export default decorate;
+      
+      // card-demo.scss
+      .card-demo {
+        display: flex;
+        flex-direction: column;
+        
+        @media (min-width: 768px) {
+          flex-direction: row;
+          flex-wrap: wrap;
+          justify-content: space-between;
+        }
+        
+        &__card {
+          margin-bottom: 2rem;
+          
+          @media (min-width: 768px) {
+            width: calc(50% - 1rem);
+          }
+        }
+        
+        &__image {
+          margin-bottom: 1rem;
+          
+          img {
+            width: 100%;
+            height: auto;
+            display: block;
+          }
+        }
+        
+        &__content {
+          p {
+            margin-bottom: 1rem;
+            
+            &:first-child {
+              font-size: 1.25rem;
+              font-weight: 500;
+            }
+          }
+          
+          .button-container {
+            margin-top: 1.5rem;
+            
+            .button {
+              display: inline-block;
+              padding: 0.5rem 1rem;
+              background-color: #0066cc;
+              color: white;
+              text-decoration: none;
+              border-radius: 0.25rem;
+              font-weight: 600;
+              transition: background-color 0.2s ease;
+              
+              &:hover, &:focus {
+                background-color: #0052a3;
+              }
+            }
+          }
+        }
+      }
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>
